@@ -1,0 +1,91 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+df = read_csv("literary-digest-summary-data.csv")
+df
+```
+
+```{r}
+state_dict = state.abb
+names(state_dict) = state.name
+```
+
+
+```{r}
+sim_1936_vote = pmap(
+  select(df, state, actual_dem_1936, actual_rep_1936),
+  function(state, actual_dem_1936, actual_rep_1936) {
+   tibble(
+    # Too big if you include state
+    state=state_dict[state],
+    voted_dem=c(rep(1, actual_dem_1936), 
+                rep(0, actual_rep_1936))
+          )
+  }
+) %>% 
+  bind_rows() %>% 
+  sample_frac(1)
+```
+
+```{r}
+head(sim_1936_vote)
+```
+
+```{r}
+# Roosevelt actually won 60.8% of the vote in 1936
+# 62.4% of the dem/rep vote
+# 60.8/(60.8+36.5)
+mean(sim_1936_vote$voted_dem)
+```
+
+
+```{r}
+write_csv(sim_1936_vote, "1936_votes.csv")
+```
+
+```{r}
+sim_1936_poll = pmap(
+  select(df, state, ld_dem_1936, ld_rep_1936),
+  function(state, ld_dem_1936, ld_rep_1936) {
+   tibble(
+    # Too big if you include state
+    # state=state_dict[state], 
+    voted_dem=c(rep(1, ld_dem_1936), 
+                rep(0, ld_rep_1936))
+          )
+  }
+) %>% 
+  bind_rows() %>% 
+  sample_frac(1)
+```
+
+```{r}
+head(sim_1936_poll)
+```
+```{r}
+# Lit digest predicted 43% Roosevelt
+mean(sim_1936_poll$voted_dem)
+```
+
+```{r}
+write_csv(sim_1936_poll, "1936_poll.csv")
+```
+
+```{r}
+df %>% 
+  mutate(
+    ld_rep_1932 = ld_dem_1936_rep_1932 + ld_rep_1936_rep_1932,
+    ld_dem_1932 = ld_dem_1936_dem_1932 + ld_rep_1936_dem_1932,
+    rep_factor = actual_rep_1932 / ld_rep_1932,
+    dem_factor = actual_dem_1932 / ld_dem_1932,
+    ld_rep_1936_adj = ld_rep_1936 * rep_factor,
+    ld_dem_1936_adj = ld_dem_1936 * dem_factor
+  ) %>% 
+  summarize(
+    dem_adj = sum(ld_dem_1936_adj) / (sum(ld_rep_1936_adj) + sum(ld_dem_1936_adj)),
+    dem_actual = sum(ld_dem_1936) / (sum(ld_rep_1936) + sum(ld_dem_1936))
+  )
+```
+
